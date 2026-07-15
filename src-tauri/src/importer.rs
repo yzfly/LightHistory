@@ -446,22 +446,50 @@ fn import_claude_code_session(
 /// - 通用消息数组 JSON（[{contact/sender/text/time...}]）→ 按联系人归组
 /// - 通用消息 CSV（带表头）→ 同上
 pub fn import_data_file(conn: &mut Connection, path: &str) -> Result<ImportResult, String> {
+    // 文件名（去扩展名）作为无会话名时的兜底会话名
+    let fallback = std::path::Path::new(path)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "导入会话".into());
+
     let lower = path.to_lowercase();
     if lower.ends_with(".csv") {
         let raw = std::fs::read_to_string(path).map_err(|e| format!("无法读取文件: {e}"))?;
         let records = parse_csv_records(&raw)?;
-        return import_generic_records(conn, records);
+        return import_generic_records(conn, records, &fallback);
     }
     let raw = std::fs::read_to_string(path).map_err(|e| format!("无法读取文件: {e}"))?;
     let v: Value = serde_json::from_str(&raw).map_err(|e| format!("JSON 解析失败: {e}"))?;
     if v.get("lighthistory").is_some() && v.get("conversations").is_some() {
         return restore_backup(conn, &v);
     }
-    if let Value::Array(items) = v {
-        let records = items.iter().filter_map(json_record_to_map).collect::<Vec<_>>();
-        return import_generic_records(conn, records);
+    // 数组 / {messages:[...]} / {data:{messages:[...]}} / {data:[...]} 都拆出消息数组
+    let items = extract_message_array(&v);
+    if let Some(arr) = items {
+        let records = arr.iter().filter_map(json_record_to_map).collect::<Vec<_>>();
+        return import_generic_records(conn, records, &fallback);
     }
     Err("无法识别的文件格式：支持 LightHistory 备份 JSON、消息数组 JSON、CSV".into())
+}
+
+/// 从各种包裹结构中取出消息数组：`[...]`、`{messages:[...]}`、`{data:{messages:[...]}}`、`{data:[...]}`。
+fn extract_message_array(v: &Value) -> Option<&Vec<Value>> {
+    if let Some(a) = v.as_array() {
+        return Some(a);
+    }
+    if let Some(a) = v.get("messages").and_then(|m| m.as_array()) {
+        return Some(a);
+    }
+    if let Some(data) = v.get("data") {
+        if let Some(a) = data.as_array() {
+            return Some(a);
+        }
+        if let Some(a) = data.get("messages").and_then(|m| m.as_array()) {
+            return Some(a);
+        }
+    }
+    None
 }
 
 type Record = BTreeMap<String, String>;
@@ -555,17 +583,24 @@ fn norm_time(s: &str) -> String {
 fn import_generic_records(
     conn: &mut Connection,
     records: Vec<Record>,
+    fallback_contact: &str,
 ) -> Result<ImportResult, String> {
     const CONTACT_KEYS: &[&str] = &[
-        "contact", "chat", "room", "group", "talker", "conversation", "会话", "联系人", "群聊",
+        "contact", "chat", "room", "group", "talker", "conversation", "session", "会话", "联系人",
+        "群聊",
     ];
-    const SENDER_KEYS: &[&str] =
-        &["sender", "from", "name", "nickname", "talker_name", "发送者", "昵称"];
+    const SENDER_KEYS: &[&str] = &[
+        "sender", "senderusername", "sender_username", "senderdisplayname", "from", "name",
+        "nickname", "talker_name", "发送者", "昵称",
+    ];
     const TEXT_KEYS: &[&str] = &["content", "text", "msg", "message", "body", "内容", "消息"];
     const TIME_KEYS: &[&str] = &[
-        "createtime", "create_time", "time", "timestamp", "date", "datetime", "时间",
+        "createtime", "create_time", "time", "timestamp", "date", "datetime", "sortseq",
+        "sort_seq", "时间",
     ];
     const SELF_KEYS: &[&str] = &["issend", "is_send", "is_self", "self", "issender", "是否发送"];
+    // 方向字段：值 out/send/sent/发送 视为「我发出」，in/recv/received/接收 视为对方
+    const DIRECTION_KEYS: &[&str] = &["direction", "flag", "方向"];
 
     let mut groups: BTreeMap<String, Vec<(String, String, String)>> = BTreeMap::new();
     for rec in &records {
@@ -573,17 +608,40 @@ fn import_generic_records(
             Some(t) => t.clone(),
             None => continue,
         };
+        if text.trim().is_empty() {
+            continue;
+        }
         let contact = pick(rec, CONTACT_KEYS)
             .cloned()
-            .unwrap_or_else(|| "未命名会话".into());
+            .unwrap_or_else(|| fallback_contact.to_string());
         let time = pick(rec, TIME_KEYS).map(|t| norm_time(t)).unwrap_or_default();
-        let is_self = pick(rec, SELF_KEYS)
-            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "是"))
-            .unwrap_or(false);
+
+        // 判定是否本人发出：优先 direction，再看 is_send 类字段
+        let is_self = match pick(rec, DIRECTION_KEYS) {
+            Some(d) => {
+                let d = d.trim().to_lowercase();
+                if matches!(d.as_str(), "out" | "send" | "sent" | "发送" | "self") {
+                    Some(true)
+                } else if matches!(d.as_str(), "in" | "recv" | "received" | "receive" | "接收" | "对方") {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
+        .or_else(|| {
+            pick(rec, SELF_KEYS)
+                .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "是" | "out"))
+        })
+        .unwrap_or(false);
+
         let sender = if is_self {
             "human".to_string()
         } else {
-            pick(rec, SENDER_KEYS).cloned().unwrap_or_else(|| contact.clone())
+            pick(rec, SENDER_KEYS)
+                .cloned()
+                .unwrap_or_else(|| contact.clone())
         };
         groups.entry(contact).or_default().push((sender, text, time));
     }

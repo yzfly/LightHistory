@@ -133,7 +133,7 @@ async function backupDb() {
         <div class="card-icon"><Icon name="file" :size="22" /></div>
         <div class="card-title">数据文件（JSON / CSV）</div>
         <div class="card-desc">
-          通用消息文件按联系人归组导入；LightHistory 备份 JSON 自动识别并恢复
+          任意来源的消息文件（导出的 JSON / CSV）按会话归组导入，自动识别发送方向、时间与联系人；LightHistory 备份 JSON 自动恢复
         </div>
         <button class="btn btn-primary" :disabled="!!busy" @click="importFile">
           {{ busy === "file" ? "导入中…" : "选择文件" }}

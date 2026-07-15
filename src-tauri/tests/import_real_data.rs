@@ -85,3 +85,40 @@ fn generic_import_and_backup_roundtrip() {
     let (convs, msgs, _) = testing::quick_stats(&conn3).expect("stats");
     assert_eq!((convs, msgs), (3, 5));
 }
+
+#[test]
+fn im_export_direction_format() {
+    let tmp = std::env::temp_dir().join("lighthistory_test_im.db");
+    let _ = std::fs::remove_file(&tmp);
+    let mut conn = testing::open_db(&tmp).expect("open db");
+
+    // 模拟单会话导出：平铺数组 + direction(out/in) + senderUsername + createTime(unix秒)，无 contact 字段
+    // 文件名（去扩展名）应成为会话名
+    let dir = std::env::temp_dir().join("老王");
+    let _ = std::fs::create_dir_all(&dir);
+    let json_path = dir.join("与老王的对话.json");
+    std::fs::write(&json_path, r#"[
+      {"localId":1,"createTime":1751500800,"direction":"in","senderUsername":"老王","type":"文本消息","content":"在吗"},
+      {"localId":2,"createTime":1751500860,"direction":"out","senderUsername":"me","type":"文本消息","content":"在的"},
+      {"localId":3,"createTime":1751500900,"direction":"in","senderUsername":"老王","type":"文本消息","content":"周末一起吃饭"}
+    ]"#).unwrap();
+    let r = testing::import_file(&mut conn, json_path.to_str().unwrap()).expect("im json");
+    println!("单会话导出: imported={} messages={}", r.imported, r.messages);
+    assert_eq!(r.imported, 1);
+    assert_eq!(r.messages, 3);
+
+    // 包裹结构 {messages:[...]} 也要能解析
+    let wrapped = dir.join("wrapped.json");
+    std::fs::write(&wrapped, r#"{"messages":[
+      {"createTime":1751600000,"direction":"out","content":"hi"},
+      {"createTime":1751600100,"direction":"in","senderUsername":"小李","content":"hello"}
+    ]}"#).unwrap();
+    let r = testing::import_file(&mut conn, wrapped.to_str().unwrap()).expect("wrapped");
+    println!("包裹结构: imported={} messages={}", r.imported, r.messages);
+    assert_eq!(r.messages, 2);
+
+    // 验证方向映射：老王会话里应有 human(我) 与非 human(老王) 两类
+    let (convs, _msgs, user_chars) = testing::quick_stats(&conn).expect("stats");
+    assert_eq!(convs, 2);
+    assert!(user_chars > 0, "direction=out 的消息应计入用户输入字数");
+}
