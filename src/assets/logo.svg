@@ -1,39 +1,19 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<svg width="720" height="740" viewBox="152 134 720 740" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bgWhite" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#F4F4F6"/>
-    </linearGradient>
     <linearGradient id="glyph" gradientUnits="userSpaceOnUse" x1="512" y1="150" x2="512" y2="880">
       <stop offset="0%" stop-color="#FFA43D"/>
       <stop offset="55%" stop-color="#FF7213"/>
       <stop offset="100%" stop-color="#F04E00"/>
     </linearGradient>
-    <filter id="glyphShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="16" stdDeviation="30" flood-color="#E86A00" flood-opacity="0.30"/>
-    </filter>
   </defs>
-
-  <!-- 铺满画布的白底（macOS 圆角自带） -->
-  <path d="M 388 0 L 636 0
-    C 892 0, 1024 132, 1024 388 L 1024 636
-    C 1024 892, 892 1024, 636 1024 L 388 1024
-    C 132 1024, 0 892, 0 636 L 0 388
-    C 0 132, 132 0, 388 0 Z" fill="url(#bgWhite)"/>
-
-  <!-- 橙色表盘气泡 -->
-  <g filter="url(#glyphShadow)">
-    <path d="M 512 150
-      C 707 150, 856 299, 856 494
-      C 856 689, 707 838, 512 838
-      C 454 838, 400 825, 352 801
-      L 213 866
-      C 192 876, 171 856, 179 835 L 229 703
-      C 184 646, 168 571, 168 494
-      C 168 299, 317 150, 512 150 Z" fill="url(#glyph)"/>
-  </g>
-
-  <!-- 白色指针 10:10 -->
+  <path d="M 512 150
+    C 707 150, 856 299, 856 494
+    C 856 689, 707 838, 512 838
+    C 454 838, 400 825, 352 801
+    L 213 866
+    C 192 876, 171 856, 179 835 L 229 703
+    C 184 646, 168 571, 168 494
+    C 168 299, 317 150, 512 150 Z" fill="url(#glyph)"/>
   <g stroke="#FFFFFF" stroke-width="66" stroke-linecap="round" fill="none">
     <path d="M 512 494 L 400 413"/>
     <path d="M 512 494 L 512 292"/>
