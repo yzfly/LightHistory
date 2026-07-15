@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import Icon from "./Icon.vue";
 import { api, type ImportResult } from "../api";
 
@@ -45,6 +45,60 @@ async function importCode() {
     busy.value = "";
   }
 }
+
+async function importFile() {
+  const path = await open({
+    title: "选择数据文件（JSON / CSV）",
+    filters: [{ name: "数据文件", extensions: ["json", "csv"] }],
+  });
+  if (!path) return;
+  busy.value = "file";
+  try {
+    const r = await api.importDataFile(path as string);
+    pushResult("数据文件", r);
+    emit("imported");
+  } catch (e) {
+    log.value.unshift(`❌ 导入失败：${e}`);
+  } finally {
+    busy.value = "";
+  }
+}
+
+async function exportLibrary() {
+  const dest = await save({
+    title: "全库导出为 JSON 备份",
+    defaultPath: "lighthistory-backup.json",
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  if (!dest) return;
+  busy.value = "export";
+  try {
+    const n = await api.exportLibrary(dest as string);
+    log.value.unshift(`${new Date().toLocaleTimeString()} · 全库导出完成：${n} 个会话 → ${dest}`);
+  } catch (e) {
+    log.value.unshift(`❌ 导出失败：${e}`);
+  } finally {
+    busy.value = "";
+  }
+}
+
+async function backupDb() {
+  const dest = await save({
+    title: "备份数据库文件",
+    defaultPath: "lighthistory.db",
+    filters: [{ name: "SQLite", extensions: ["db"] }],
+  });
+  if (!dest) return;
+  busy.value = "db";
+  try {
+    await api.backupDb(dest as string);
+    log.value.unshift(`${new Date().toLocaleTimeString()} · 数据库已备份 → ${dest}`);
+  } catch (e) {
+    log.value.unshift(`❌ 备份失败：${e}`);
+  } finally {
+    busy.value = "";
+  }
+}
 </script>
 
 <template>
@@ -75,11 +129,45 @@ async function importCode() {
         </button>
       </div>
 
+      <div class="card import-card">
+        <div class="card-icon"><Icon name="file" :size="22" /></div>
+        <div class="card-title">数据文件（JSON / CSV）</div>
+        <div class="card-desc">
+          通用消息文件按联系人归组导入；LightHistory 备份 JSON 自动识别并恢复
+        </div>
+        <button class="btn btn-primary" :disabled="!!busy" @click="importFile">
+          {{ busy === "file" ? "导入中…" : "选择文件" }}
+        </button>
+      </div>
+
       <div class="card import-card soon">
         <div class="card-icon"><Icon name="sparkles" :size="22" /></div>
-        <div class="card-title">ChatGPT / Codex / 微信</div>
-        <div class="card-desc">二期规划中：ChatGPT 导出包、Codex session、微信聊天记录</div>
+        <div class="card-title">ChatGPT / Codex</div>
+        <div class="card-desc">规划中：ChatGPT 官方导出包、Codex session 会话记录</div>
         <button class="btn" disabled>敬请期待</button>
+      </div>
+    </div>
+
+    <h2 class="section-title">备份</h2>
+    <div class="cards">
+      <div class="card import-card">
+        <div class="card-icon"><Icon name="database" :size="22" /></div>
+        <div class="card-title">全库导出（JSON）</div>
+        <div class="card-desc">
+          所有会话连同来源、账号一起导出为单个 JSON，可在任何设备的 LightHistory 里恢复
+        </div>
+        <button class="btn btn-primary" :disabled="!!busy" @click="exportLibrary">
+          {{ busy === "export" ? "导出中…" : "全库导出" }}
+        </button>
+      </div>
+
+      <div class="card import-card">
+        <div class="card-icon"><Icon name="shield" :size="22" /></div>
+        <div class="card-title">备份数据库文件</div>
+        <div class="card-desc">直接复制 SQLite 数据库本体，含全文索引，恢复时放回应用数据目录即可</div>
+        <button class="btn btn-primary" :disabled="!!busy" @click="backupDb">
+          {{ busy === "db" ? "备份中…" : "备份数据库" }}
+        </button>
       </div>
     </div>
 
@@ -145,6 +233,11 @@ h1 {
   font-size: 12.5px;
   color: var(--text-2);
   flex: 1;
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 24px 0 12px;
 }
 .log-card {
   margin-top: 14px;

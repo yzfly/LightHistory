@@ -11,6 +11,7 @@ pub struct ConvMeta {
     pub source: String,
     pub title: String,
     pub project: String,
+    pub account: String,
     pub created_at: String,
     pub updated_at: String,
     pub message_count: i64,
@@ -48,21 +49,23 @@ fn row_to_meta(r: &rusqlite::Row) -> rusqlite::Result<ConvMeta> {
         source: r.get(1)?,
         title: r.get(2)?,
         project: r.get(3)?,
-        created_at: r.get(4)?,
-        updated_at: r.get(5)?,
-        message_count: r.get(6)?,
-        user_chars: r.get(7)?,
-        assistant_chars: r.get(8)?,
+        account: r.get(4)?,
+        created_at: r.get(5)?,
+        updated_at: r.get(6)?,
+        message_count: r.get(7)?,
+        user_chars: r.get(8)?,
+        assistant_chars: r.get(9)?,
     })
 }
 
 const META_COLS: &str =
-    "id, source, title, project, created_at, updated_at, message_count, user_chars, assistant_chars";
+    "id, source, title, project, account, created_at, updated_at, message_count, user_chars, assistant_chars";
 
 #[tauri::command]
 pub fn list_conversations(
     db: State<AppDb>,
     source: Option<String>,
+    account: Option<String>,
     sort: Option<String>,
 ) -> Result<Vec<ConvMeta>, String> {
     let conn = db.0.lock().unwrap();
@@ -71,23 +74,39 @@ pub fn list_conversations(
         Some("messages") => "message_count DESC",
         _ => "updated_at DESC",
     };
-    let (sql, has_source) = match &source {
-        Some(s) if !s.is_empty() => (
-            format!("SELECT {META_COLS} FROM conversations WHERE source = ?1 ORDER BY {order}"),
-            true,
-        ),
-        _ => (
-            format!("SELECT {META_COLS} FROM conversations ORDER BY {order}"),
-            false,
-        ),
-    };
-    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-    let rows = if has_source {
-        stmt.query_map(params![source.unwrap()], row_to_meta)
-    } else {
-        stmt.query_map([], row_to_meta)
+    let mut wheres: Vec<String> = Vec::new();
+    let mut binds: Vec<String> = Vec::new();
+    if let Some(s) = source.filter(|s| !s.is_empty()) {
+        binds.push(s);
+        wheres.push(format!("source = ?{}", binds.len()));
     }
-    .map_err(|e| e.to_string())?;
+    if let Some(a) = account.filter(|a| !a.is_empty()) {
+        binds.push(a);
+        wheres.push(format!("account = ?{}", binds.len()));
+    }
+    let where_sql = if wheres.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", wheres.join(" AND "))
+    };
+    let sql = format!("SELECT {META_COLS} FROM conversations {where_sql} ORDER BY {order}");
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(rusqlite::params_from_iter(binds.iter()), row_to_meta)
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+/// 库里出现过的所有账号（用于筛选下拉）。
+#[tauri::command]
+pub fn list_accounts(db: State<AppDb>) -> Result<Vec<String>, String> {
+    let conn = db.0.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT DISTINCT account FROM conversations WHERE account != '' ORDER BY account")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
@@ -145,8 +164,12 @@ pub fn import_claude_code(db: State<AppDb>) -> Result<ImportResult, String> {
 
 // ---------- 导出 ----------
 
-fn sender_label(sender: &str) -> &'static str {
-    if sender == "human" { "用户" } else { "Claude" }
+fn sender_label(sender: &str) -> &str {
+    match sender {
+        "human" => "用户",
+        "assistant" => "Claude",
+        other => other,
+    }
 }
 
 fn render_markdown(d: &ConvDetail) -> String {
@@ -286,6 +309,70 @@ fn get_conversation_inner(db: &State<AppDb>, id: &str) -> Result<ConvDetail, Str
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
     Ok(ConvDetail { meta, messages })
+}
+
+#[tauri::command]
+pub fn import_data_file(db: State<AppDb>, path: String) -> Result<ImportResult, String> {
+    let mut conn = db.0.lock().unwrap();
+    importer::import_data_file(&mut conn, &path)
+}
+
+/// 全库导出为可恢复的 JSON 备份（含来源与账号）。
+#[tauri::command]
+pub fn export_library(db: State<AppDb>, dest: String) -> Result<usize, String> {
+    let conn = db.0.lock().unwrap();
+    let mut stmt = conn
+        .prepare(&format!("SELECT {META_COLS} FROM conversations ORDER BY updated_at DESC"))
+        .map_err(|e| e.to_string())?;
+    let metas = stmt
+        .query_map([], row_to_meta)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let mut msg_stmt = conn
+        .prepare("SELECT id, sender, text, created_at FROM messages WHERE conv_id = ?1 ORDER BY idx")
+        .map_err(|e| e.to_string())?;
+
+    let mut convs = Vec::with_capacity(metas.len());
+    for m in &metas {
+        let messages = msg_stmt
+            .query_map(params![m.id], |r| {
+                Ok(serde_json::json!({
+                    "id": r.get::<_, String>(0)?,
+                    "sender": r.get::<_, String>(1)?,
+                    "text": r.get::<_, String>(2)?,
+                    "created_at": r.get::<_, String>(3)?,
+                }))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        convs.push(serde_json::json!({
+            "id": m.id, "source": m.source, "title": m.title, "project": m.project,
+            "account": m.account, "created_at": m.created_at, "updated_at": m.updated_at,
+            "messages": messages,
+        }));
+    }
+    let dump = serde_json::json!({
+        "lighthistory": 1,
+        "exported_at": chrono::Utc::now().to_rfc3339(),
+        "conversations": convs,
+    });
+    std::fs::write(&dest, serde_json::to_string(&dump).map_err(|e| e.to_string())?)
+        .map_err(|e| format!("写入失败: {e}"))?;
+    Ok(metas.len())
+}
+
+/// 备份 SQLite 数据库文件本体。
+#[tauri::command]
+pub fn backup_db(db: State<AppDb>, dest: String) -> Result<String, String> {
+    let conn = db.0.lock().unwrap();
+    conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+        .map_err(|e| e.to_string())?;
+    let src = conn.path().ok_or("数据库路径未知")?.to_string();
+    std::fs::copy(&src, &dest).map_err(|e| format!("复制失败: {e}"))?;
+    Ok(dest)
 }
 
 // ---------- 统计 ----------

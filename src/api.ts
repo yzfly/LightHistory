@@ -5,6 +5,7 @@ export interface ConvMeta {
   source: string;
   title: string;
   project: string;
+  account: string;
   created_at: string;
   updated_at: string;
   message_count: number;
@@ -66,8 +67,16 @@ export interface Stats {
 }
 
 export const api = {
-  listConversations: (source?: string, sort?: string) =>
-    invoke<ConvMeta[]>("list_conversations", { source: source || null, sort: sort || null }),
+  listConversations: (source?: string, account?: string, sort?: string) =>
+    invoke<ConvMeta[]>("list_conversations", {
+      source: source || null,
+      account: account || null,
+      sort: sort || null,
+    }),
+  listAccounts: () => invoke<string[]>("list_accounts"),
+  importDataFile: (path: string) => invoke<ImportResult>("import_data_file", { path }),
+  exportLibrary: (dest: string) => invoke<number>("export_library", { dest }),
+  backupDb: (dest: string) => invoke<string>("backup_db", { dest }),
   getConversation: (id: string) => invoke<ConvDetail>("get_conversation", { id }),
   search: (query: string) => invoke<SearchHit[]>("search", { query }),
   importClaudeZip: (path: string) => invoke<ImportResult>("import_claude_zip", { path }),
@@ -82,7 +91,15 @@ export const api = {
 export const SOURCE_LABELS: Record<string, string> = {
   claude_web: "Claude 网页",
   claude_code: "Claude Code",
+  im_chat: "聊天记录",
 };
+
+/// 消息发送者的展示名：human=我，assistant=Claude，其余原样（聊天记录里的联系人昵称）。
+export function senderLabel(sender: string): string {
+  if (sender === "human") return "我";
+  if (sender === "assistant") return "Claude";
+  return sender;
+}
 
 export function sourceLabel(s: string): string {
   return SOURCE_LABELS[s] ?? s;

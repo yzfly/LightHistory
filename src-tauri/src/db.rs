@@ -38,7 +38,23 @@ pub fn open(path: &Path) -> rusqlite::Result<Connection> {
         );
         "#,
     )?;
+    migrate(&conn)?;
     Ok(conn)
+}
+
+/// 老库升级：补 account 列。
+fn migrate(conn: &Connection) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare("PRAGMA table_info(conversations)")?;
+    let cols: Vec<String> = stmt
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<Result<_, _>>()?;
+    if !cols.iter().any(|c| c == "account") {
+        conn.execute(
+            "ALTER TABLE conversations ADD COLUMN account TEXT NOT NULL DEFAULT ''",
+            [],
+        )?;
+    }
+    Ok(())
 }
 
 fn is_cjk(c: char) -> bool {

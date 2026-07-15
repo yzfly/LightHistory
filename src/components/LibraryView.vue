@@ -6,6 +6,7 @@ import {
   api,
   fmtDate,
   fmtNum,
+  senderLabel,
   sourceLabel,
   type ConvDetail,
   type ConvMeta,
@@ -15,6 +16,8 @@ import {
 const conversations = ref<ConvMeta[]>([]);
 const detail = ref<ConvDetail | null>(null);
 const sourceFilter = ref("");
+const accountFilter = ref("");
+const accounts = ref<string[]>([]);
 const sort = ref("updated");
 const query = ref("");
 const hits = ref<SearchHit[] | null>(null);
@@ -24,7 +27,15 @@ const highlightMsgId = ref("");
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function reload() {
-  conversations.value = await api.listConversations(sourceFilter.value, sort.value);
+  accounts.value = await api.listAccounts();
+  if (accountFilter.value && !accounts.value.includes(accountFilter.value)) {
+    accountFilter.value = "";
+  }
+  conversations.value = await api.listConversations(
+    sourceFilter.value,
+    accountFilter.value,
+    sort.value
+  );
   if (!detail.value && conversations.value.length) {
     openConv(conversations.value[0].id);
   }
@@ -135,6 +146,11 @@ const detailChars = computed(() => {
             <option value="">全部来源</option>
             <option value="claude_web">Claude 网页</option>
             <option value="claude_code">Claude Code</option>
+            <option value="im_chat">聊天记录</option>
+          </select>
+          <select v-if="accounts.length > 1" v-model="accountFilter" @change="reload" :title="'按账号筛选'">
+            <option value="">全部账号</option>
+            <option v-for="a in accounts" :key="a" :value="a">{{ a }}</option>
           </select>
           <select v-model="sort" @change="reload">
             <option value="updated">最近更新</option>
@@ -198,6 +214,7 @@ const detailChars = computed(() => {
           <div class="detail-title">{{ detail.meta.title }}</div>
           <div class="detail-sub">
             {{ sourceLabel(detail.meta.source) }}
+            <template v-if="detail.meta.account"> · {{ detail.meta.account }}</template>
             <template v-if="detail.meta.project"> · {{ detail.meta.project }}</template>
             · {{ detail.meta.message_count }} 条消息 · {{ detailChars }}
           </div>
@@ -231,7 +248,7 @@ const detailChars = computed(() => {
           </div>
           <div class="msg" :class="{ hl: m.id === highlightMsgId }">
             <div class="msg-who">
-              {{ m.sender === "human" ? "我" : "Claude" }}
+              {{ senderLabel(m.sender) }}
               <span class="msg-ts">{{ fmtDate(m.created_at) }}</span>
             </div>
             <pre class="msg-text">{{ m.text }}</pre>
@@ -303,7 +320,11 @@ const detailChars = computed(() => {
 }
 .filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+.filters select {
+  max-width: 100%;
 }
 .filters select {
   flex: 1;

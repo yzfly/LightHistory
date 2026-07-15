@@ -40,6 +40,60 @@ pub mod testing {
         rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
     }
 
+    pub fn import_file(conn: &mut Connection, path: &str) -> Result<importer::ImportResult, String> {
+        importer::import_data_file(conn, path)
+    }
+
+    pub fn list_accounts(conn: &Connection) -> Result<Vec<String>, String> {
+        let mut stmt = conn
+            .prepare("SELECT DISTINCT account FROM conversations WHERE account != ''")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| r.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    }
+
+    pub fn export_library(conn: &Connection, dest: &str) -> Result<usize, String> {
+        let mut stmt = conn
+            .prepare("SELECT id, source, title, project, account, created_at, updated_at FROM conversations")
+            .map_err(|e| e.to_string())?;
+        let metas: Vec<(String, String, String, String, String, String, String)> = stmt
+            .query_map([], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        let mut msg_stmt = conn
+            .prepare("SELECT id, sender, text, created_at FROM messages WHERE conv_id = ?1 ORDER BY idx")
+            .map_err(|e| e.to_string())?;
+        let mut convs = Vec::new();
+        for (id, source, title, project, account, created_at, updated_at) in &metas {
+            let messages = msg_stmt
+                .query_map([id], |r| {
+                    Ok(serde_json::json!({
+                        "id": r.get::<_, String>(0)?,
+                        "sender": r.get::<_, String>(1)?,
+                        "text": r.get::<_, String>(2)?,
+                        "created_at": r.get::<_, String>(3)?,
+                    }))
+                })
+                .map_err(|e| e.to_string())?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?;
+            convs.push(serde_json::json!({
+                "id": id, "source": source, "title": title, "project": project,
+                "account": account, "created_at": created_at, "updated_at": updated_at,
+                "messages": messages,
+            }));
+        }
+        let dump = serde_json::json!({"lighthistory": 1, "conversations": convs});
+        std::fs::write(dest, serde_json::to_string(&dump).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        Ok(metas.len())
+    }
+
     pub fn quick_stats(conn: &Connection) -> Result<(i64, i64, i64), String> {
         conn.query_row(
             "SELECT (SELECT COUNT(*) FROM conversations),
@@ -70,6 +124,10 @@ pub fn run() {
             commands::search,
             commands::import_claude_zip,
             commands::import_claude_code,
+            commands::import_data_file,
+            commands::list_accounts,
+            commands::export_library,
+            commands::backup_db,
             commands::export_conversation,
             commands::export_batch,
             commands::get_stats,
