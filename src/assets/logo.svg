@@ -1,55 +1,42 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0.2" y1="0" x2="0.8" y2="1">
-      <stop offset="0%" stop-color="#FFAE4F"/>
-      <stop offset="48%" stop-color="#FF7A1F"/>
+    <linearGradient id="bgWhite" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F4F4F6"/>
+    </linearGradient>
+    <linearGradient id="glyph" gradientUnits="userSpaceOnUse" x1="512" y1="150" x2="512" y2="880">
+      <stop offset="0%" stop-color="#FFA43D"/>
+      <stop offset="55%" stop-color="#FF7213"/>
       <stop offset="100%" stop-color="#F04E00"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.32" cy="0.12" r="0.9">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.28"/>
-      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.06"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="hands" gradientUnits="userSpaceOnUse" x1="512" y1="300" x2="512" y2="560">
-      <stop offset="0%" stop-color="#FF7A1F"/>
-      <stop offset="100%" stop-color="#EF4E00"/>
-    </linearGradient>
     <filter id="glyphShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="14" stdDeviation="26" flood-color="#7A2E00" flood-opacity="0.30"/>
+      <feDropShadow dx="0" dy="16" stdDeviation="30" flood-color="#E86A00" flood-opacity="0.30"/>
     </filter>
-    <clipPath id="bgClip">
-      <path d="M 400 64 L 624 64 C 848 64, 960 176, 960 400 L 960 624 C 960 848, 848 960, 624 960 L 400 960 C 176 960, 64 848, 64 624 L 64 400 C 64 176, 176 64, 400 64 Z"/>
-    </clipPath>
   </defs>
 
-  <!-- 底：平滑圆角矩形 + 渐变 -->
-  <path d="M 400 64 L 624 64
-    C 848 64, 960 176, 960 400 L 960 624
-    C 960 848, 848 960, 624 960 L 400 960
-    C 176 960, 64 848, 64 624 L 64 400
-    C 64 176, 176 64, 400 64 Z" fill="url(#bg)"/>
+  <!-- 铺满画布的白底（macOS 圆角自带） -->
+  <path d="M 388 0 L 636 0
+    C 892 0, 1024 132, 1024 388 L 1024 636
+    C 1024 892, 892 1024, 636 1024 L 388 1024
+    C 132 1024, 0 892, 0 636 L 0 388
+    C 0 132, 132 0, 388 0 Z" fill="url(#bgWhite)"/>
 
-  <!-- 顶部环境光 -->
-  <g clip-path="url(#bgClip)">
-    <rect x="64" y="64" width="896" height="896" fill="url(#glow)"/>
-  </g>
-
-  <!-- 表盘气泡：白色圆 + 融合的小尾巴 -->
+  <!-- 橙色表盘气泡 -->
   <g filter="url(#glyphShadow)">
-    <path d="M 512 216
-      C 671 216, 792 337, 792 496
-      C 792 655, 671 776, 512 776
-      C 465 776, 421 765, 382 746
-      L 268 800
-      C 251 808, 234 792, 240 775 L 281 665
-      C 244 618, 232 559, 232 496
-      C 232 337, 353 216, 512 216 Z" fill="#FFFFFF"/>
+    <path d="M 512 150
+      C 707 150, 856 299, 856 494
+      C 856 689, 707 838, 512 838
+      C 454 838, 400 825, 352 801
+      L 213 866
+      C 192 876, 171 856, 179 835 L 229 703
+      C 184 646, 168 571, 168 494
+      C 168 299, 317 150, 512 150 Z" fill="url(#glyph)"/>
   </g>
 
-  <!-- 指针 10:10 -->
-  <g stroke="url(#hands)" stroke-width="56" stroke-linecap="round" fill="none">
-    <path d="M 512 496 L 419 429"/>
-    <path d="M 512 496 L 512 330"/>
+  <!-- 白色指针 10:10 -->
+  <g stroke="#FFFFFF" stroke-width="66" stroke-linecap="round" fill="none">
+    <path d="M 512 494 L 400 413"/>
+    <path d="M 512 494 L 512 292"/>
   </g>
-  <circle cx="512" cy="496" r="34" fill="url(#hands)"/>
+  <circle cx="512" cy="494" r="40" fill="#FFFFFF"/>
 </svg>
