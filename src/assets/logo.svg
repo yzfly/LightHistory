@@ -1,0 +1,38 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0%" stop-color="#FFA254"/>
+      <stop offset="55%" stop-color="#FF7A1A"/>
+      <stop offset="100%" stop-color="#F55A00"/>
+    </linearGradient>
+    <linearGradient id="dots" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF8C33"/>
+      <stop offset="100%" stop-color="#F55A00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- MIUI 平滑圆角底 -->
+  <path d="M 400 64 L 624 64
+    C 848 64, 960 176, 960 400 L 960 624
+    C 960 848, 848 960, 624 960 L 400 960
+    C 176 960, 64 848, 64 624 L 64 400
+    C 64 176, 176 64, 400 64 Z" fill="url(#bg)"/>
+
+  <!-- 历史层：半透明气泡（错位在右上） -->
+  <rect x="404" y="212" width="416" height="278" rx="112" fill="#FFFFFF" opacity="0.38"/>
+
+  <!-- 当前层：实心白气泡 + 左下角小尾巴 -->
+  <path d="M 348 368
+    L 704 368
+    C 778 368, 816 406, 816 480 L 816 570
+    C 816 644, 778 682, 704 682 L 420 682
+    L 306 774
+    C 290 787, 268 774, 272 754 L 288 672
+    C 254 654, 236 620, 236 570 L 236 480
+    C 236 406, 274 368, 348 368 Z" fill="#FFFFFF"/>
+
+  <!-- 输入点 -->
+  <circle cx="416" cy="526" r="37" fill="url(#dots)"/>
+  <circle cx="526" cy="526" r="37" fill="url(#dots)"/>
+  <circle cx="636" cy="526" r="37" fill="url(#dots)"/>
+</svg>

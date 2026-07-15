@@ -1,0 +1,177 @@
+:root {
+  /* 小米 / HyperOS 设计语言 */
+  --primary: #ff6700;
+  --primary-deep: #e85a00;
+  --primary-light: #fff1e6;
+  --primary-grad: linear-gradient(135deg, #ff9a3d 0%, #ff6700 100%);
+  --bg: #f7f7f7;
+  --card: #ffffff;
+  --fill: #f2f2f2;
+  --fill-2: #ebebeb;
+  --text: #191919;
+  --text-2: #5c5c5c;
+  --text-3: #999999;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.03);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1);
+  font-family: "MiSans", "MiSans VF", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  font-size: 13px;
+}
+
+/* 小米式胶囊按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--fill);
+  border: none;
+  color: var(--text);
+  font-weight: 500;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:hover {
+  background: var(--fill-2);
+}
+.btn:active {
+  transform: scale(0.96);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--primary-deep);
+  color: #fff;
+}
+
+input[type="text"],
+select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--text);
+  outline: none;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+input[type="text"]:focus {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--primary);
+}
+select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+select:hover {
+  background-color: var(--fill-2);
+}
+
+/* 无边框大圆角卡片 */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: var(--primary);
+  white-space: nowrap;
+  font-weight: 500;
+}
+.tag.code {
+  background: #e8f7ee;
+  color: #16a34a;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c2c2c2;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+mark {
+  background: #ffe0c2;
+  color: var(--primary-deep);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  #app,
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+}
