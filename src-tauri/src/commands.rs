@@ -67,6 +67,7 @@ pub fn list_conversations(
     source: Option<String>,
     account: Option<String>,
     sort: Option<String>,
+    hide_empty: Option<bool>,
 ) -> Result<Vec<ConvMeta>, String> {
     let conn = db.0.lock().unwrap();
     let order = match sort.as_deref() {
@@ -83,6 +84,9 @@ pub fn list_conversations(
     if let Some(a) = account.filter(|a| !a.is_empty()) {
         binds.push(a);
         wheres.push(format!("account = ?{}", binds.len()));
+    }
+    if hide_empty.unwrap_or(false) {
+        wheres.push("message_count > 0".into());
     }
     let where_sql = if wheres.is_empty() {
         String::new()

@@ -67,11 +67,12 @@ export interface Stats {
 }
 
 export const api = {
-  listConversations: (source?: string, account?: string, sort?: string) =>
+  listConversations: (source?: string, account?: string, sort?: string, hideEmpty?: boolean) =>
     invoke<ConvMeta[]>("list_conversations", {
       source: source || null,
       account: account || null,
       sort: sort || null,
+      hideEmpty: hideEmpty ?? false,
     }),
   listAccounts: () => invoke<string[]>("list_accounts"),
   importDataFile: (path: string) => invoke<ImportResult>("import_data_file", { path }),

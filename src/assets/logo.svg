@@ -1,38 +1,55 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0.15" y1="0" x2="0.85" y2="1">
-      <stop offset="0%" stop-color="#FFA254"/>
-      <stop offset="55%" stop-color="#FF7A1A"/>
-      <stop offset="100%" stop-color="#F55A00"/>
+    <linearGradient id="bg" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#FFAE4F"/>
+      <stop offset="48%" stop-color="#FF7A1F"/>
+      <stop offset="100%" stop-color="#F04E00"/>
     </linearGradient>
-    <linearGradient id="dots" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FF8C33"/>
-      <stop offset="100%" stop-color="#F55A00"/>
+    <radialGradient id="glow" cx="0.32" cy="0.12" r="0.9">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hands" gradientUnits="userSpaceOnUse" x1="512" y1="300" x2="512" y2="560">
+      <stop offset="0%" stop-color="#FF7A1F"/>
+      <stop offset="100%" stop-color="#EF4E00"/>
     </linearGradient>
+    <filter id="glyphShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="26" flood-color="#7A2E00" flood-opacity="0.30"/>
+    </filter>
+    <clipPath id="bgClip">
+      <path d="M 400 64 L 624 64 C 848 64, 960 176, 960 400 L 960 624 C 960 848, 848 960, 624 960 L 400 960 C 176 960, 64 848, 64 624 L 64 400 C 64 176, 176 64, 400 64 Z"/>
+    </clipPath>
   </defs>
 
-  <!-- MIUI 平滑圆角底 -->
+  <!-- 底：平滑圆角矩形 + 渐变 -->
   <path d="M 400 64 L 624 64
     C 848 64, 960 176, 960 400 L 960 624
     C 960 848, 848 960, 624 960 L 400 960
     C 176 960, 64 848, 64 624 L 64 400
     C 64 176, 176 64, 400 64 Z" fill="url(#bg)"/>
 
-  <!-- 历史层：半透明气泡（错位在右上） -->
-  <rect x="404" y="212" width="416" height="278" rx="112" fill="#FFFFFF" opacity="0.38"/>
+  <!-- 顶部环境光 -->
+  <g clip-path="url(#bgClip)">
+    <rect x="64" y="64" width="896" height="896" fill="url(#glow)"/>
+  </g>
 
-  <!-- 当前层：实心白气泡 + 左下角小尾巴 -->
-  <path d="M 348 368
-    L 704 368
-    C 778 368, 816 406, 816 480 L 816 570
-    C 816 644, 778 682, 704 682 L 420 682
-    L 306 774
-    C 290 787, 268 774, 272 754 L 288 672
-    C 254 654, 236 620, 236 570 L 236 480
-    C 236 406, 274 368, 348 368 Z" fill="#FFFFFF"/>
+  <!-- 表盘气泡：白色圆 + 融合的小尾巴 -->
+  <g filter="url(#glyphShadow)">
+    <path d="M 512 216
+      C 671 216, 792 337, 792 496
+      C 792 655, 671 776, 512 776
+      C 465 776, 421 765, 382 746
+      L 268 800
+      C 251 808, 234 792, 240 775 L 281 665
+      C 244 618, 232 559, 232 496
+      C 232 337, 353 216, 512 216 Z" fill="#FFFFFF"/>
+  </g>
 
-  <!-- 输入点 -->
-  <circle cx="416" cy="526" r="37" fill="url(#dots)"/>
-  <circle cx="526" cy="526" r="37" fill="url(#dots)"/>
-  <circle cx="636" cy="526" r="37" fill="url(#dots)"/>
+  <!-- 指针 10:10 -->
+  <g stroke="url(#hands)" stroke-width="56" stroke-linecap="round" fill="none">
+    <path d="M 512 496 L 419 429"/>
+    <path d="M 512 496 L 512 330"/>
+  </g>
+  <circle cx="512" cy="496" r="34" fill="url(#hands)"/>
 </svg>

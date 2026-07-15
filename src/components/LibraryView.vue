@@ -19,6 +19,7 @@ const sourceFilter = ref("");
 const accountFilter = ref("");
 const accounts = ref<string[]>([]);
 const sort = ref("updated");
+const hideEmpty = ref(localStorage.getItem("lh.hideEmpty") !== "0");
 const query = ref("");
 const hits = ref<SearchHit[] | null>(null);
 const loading = ref(false);
@@ -27,14 +28,16 @@ const highlightMsgId = ref("");
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function reload() {
-  accounts.value = await api.listAccounts();
+  accounts.value = (await api.listAccounts()) ?? [];
   if (accountFilter.value && !accounts.value.includes(accountFilter.value)) {
     accountFilter.value = "";
   }
+  localStorage.setItem("lh.hideEmpty", hideEmpty.value ? "1" : "0");
   conversations.value = await api.listConversations(
     sourceFilter.value,
     accountFilter.value,
-    sort.value
+    sort.value,
+    hideEmpty.value
   );
   if (!detail.value && conversations.value.length) {
     openConv(conversations.value[0].id);
@@ -157,6 +160,10 @@ const detailChars = computed(() => {
             <option value="created">创建时间</option>
             <option value="messages">消息数</option>
           </select>
+          <label class="empty-toggle" title="0 条消息的空对话照常导入，勾选后在列表和批量导出中隐藏">
+            <input type="checkbox" v-model="hideEmpty" @change="reload" />
+            过滤空对话
+          </label>
         </div>
       </div>
 
@@ -326,9 +333,23 @@ const detailChars = computed(() => {
 .filters select {
   max-width: 100%;
 }
+.empty-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 4px 6px;
+  user-select: none;
+}
+.empty-toggle input {
+  accent-color: var(--primary);
+  cursor: pointer;
+}
 .filters select {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 40%;
+  min-width: 100px;
 }
 .scroll {
   flex: 1;

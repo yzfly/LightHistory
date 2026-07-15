@@ -52,6 +52,8 @@ export function installDemo() {
       switch (cmd) {
         case "list_conversations":
           return CONVS;
+        case "list_accounts":
+          return ["user@example.com", "本机"];
         case "get_conversation":
           return { meta: CONVS.find((c) => c.id === args?.id) ?? CONVS[0], messages: MSGS };
         case "search":
