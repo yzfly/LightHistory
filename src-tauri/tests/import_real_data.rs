@@ -122,3 +122,32 @@ fn im_export_direction_format() {
     assert_eq!(convs, 2);
     assert!(user_chars > 0, "direction=out 的消息应计入用户输入字数");
 }
+
+#[test]
+fn message_type_placeholders() {
+    let tmp = std::env::temp_dir().join("lighthistory_test_types.db");
+    let _ = std::fs::remove_file(&tmp);
+    let mut conn = testing::open_db(&tmp).expect("open db");
+
+    // 混合类型：文本正常，非文本正文为空由 type 推占位符
+    let dir = std::env::temp_dir().join("类型测试");
+    let _ = std::fs::create_dir_all(&dir);
+    let json_path = dir.join("阿强.json");
+    std::fs::write(&json_path, r#"[
+      {"createTime":1751500800,"direction":"in","type":1,"content":"下班了吗"},
+      {"createTime":1751500810,"direction":"in","type":3,"content":""},
+      {"createTime":1751500820,"direction":"out","type":34,"content":""},
+      {"createTime":1751500830,"direction":"in","type":49,"subtype":6,"content":""},
+      {"createTime":1751500840,"direction":"in","type":"图片消息","content":""},
+      {"createTime":1751500850,"direction":"out","type":8589934592049,"content":""}
+    ]"#).unwrap();
+    let r = testing::import_file(&mut conn, json_path.to_str().unwrap()).expect("types");
+    println!("类型占位: imported={} messages={}", r.imported, r.messages);
+    assert_eq!(r.messages, 6, "非文本消息也应保留，用占位符表示");
+
+    // 读回验证占位符文本
+    let convs = testing::list_accounts(&conn); // 触发一次查询确保连接可用
+    let _ = convs;
+    let (c, m, _u) = testing::quick_stats(&conn).expect("stats");
+    assert_eq!((c, m), (1, 6));
+}

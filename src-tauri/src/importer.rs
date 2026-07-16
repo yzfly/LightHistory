@@ -568,6 +568,108 @@ fn pick<'a>(rec: &'a Record, keys: &[&str]) -> Option<&'a String> {
         .filter(|s| !s.trim().is_empty())
 }
 
+/// 把消息类型字段解读为可读占位符（用于正文为空的非文本消息）。
+/// 支持三种输入：数值类型码、复合大整数类型码、文字类型名。
+/// 文本类（返回 None）时应使用原始正文。
+fn type_placeholder(type_str: &str, subtype: Option<i64>) -> Option<&'static str> {
+    let t = type_str.trim();
+    // 1) 纯数字类型码
+    if let Ok(n) = t.parse::<i64>() {
+        return placeholder_by_code(n, subtype);
+    }
+    // 2) 文字类型名（中英关键词）
+    let low = t.to_lowercase();
+    let has = |kw: &str| low.contains(kw) || t.contains(kw);
+    if has("文本") || has("text") {
+        return None;
+    }
+    if has("图片") || has("image") || has("img") || has("picture") {
+        return Some("[图片]");
+    }
+    if has("语音") || has("voice") || has("audio") {
+        return Some("[语音]");
+    }
+    if has("视频") || has("video") {
+        return Some("[视频]");
+    }
+    if has("表情") || has("emoji") || has("sticker") || has("emoticon") {
+        return Some("[动画表情]");
+    }
+    if has("位置") || has("location") {
+        return Some("[位置]");
+    }
+    if has("名片") || has("card") || has("contact") {
+        return Some("[名片]");
+    }
+    if has("文件") || has("file") {
+        return Some("[文件]");
+    }
+    if has("链接") || has("link") || has("url") {
+        return Some("[链接]");
+    }
+    if has("小程序") || has("miniprogram") || has("mini program") || has("mini-program") {
+        return Some("[小程序]");
+    }
+    if has("引用") || has("quote") {
+        return Some("[引用消息]");
+    }
+    if has("转账") || has("transfer") {
+        return Some("[转账]");
+    }
+    if has("红包") || has("red packet") || has("redpacket") {
+        return Some("[红包]");
+    }
+    if has("系统") || has("system") {
+        return Some("[系统消息]");
+    }
+    None
+}
+
+fn placeholder_by_code(code: i64, subtype: Option<i64>) -> Option<&'static str> {
+    // 复合大整数类型码（新版结构）
+    match code {
+        1 => return None,
+        3 => return Some("[图片]"),
+        34 => return Some("[语音]"),
+        42 => return Some("[名片]"),
+        43 => return Some("[视频]"),
+        47 => return Some("[动画表情]"),
+        48 => return Some("[位置]"),
+        50 => return Some("[通话]"),
+        10000 => return Some("[系统消息]"),
+        49 => {
+            return Some(match subtype.unwrap_or(0) {
+                5 => "[链接]",
+                6 => "[文件]",
+                33 | 36 => "[小程序]",
+                57 => "[引用消息]",
+                87 => "[群公告]",
+                2000 => "[转账]",
+                2003 => "[红包]",
+                19 => "[聊天记录]",
+                _ => "[消息]",
+            });
+        }
+        _ => {}
+    }
+    // 新版复合 local_type 大整数
+    match code {
+        244813135921 => Some("[引用消息]"),
+        17179869233 => Some("[链接]"),
+        21474836529 => Some("[文章]"),
+        154618822705 => Some("[小程序]"),
+        12884901937 => Some("[音乐]"),
+        8594229559345 => Some("[红包]"),
+        81604378673 => Some("[聊天记录]"),
+        266287972401 => Some("[拍一拍]"),
+        8589934592049 => Some("[转账]"),
+        270582939697 => Some("[直播]"),
+        25769803825 => Some("[文件]"),
+        _ if code > 100000 => Some("[消息]"),
+        _ => None,
+    }
+}
+
 /// 时间归一化：unix 秒/毫秒或字符串。
 fn norm_time(s: &str) -> String {
     let t = s.trim();
@@ -601,15 +703,20 @@ fn import_generic_records(
     const SELF_KEYS: &[&str] = &["issend", "is_send", "is_self", "self", "issender", "是否发送"];
     // 方向字段：值 out/send/sent/发送 视为「我发出」，in/recv/received/接收 视为对方
     const DIRECTION_KEYS: &[&str] = &["direction", "flag", "方向"];
+    // 消息类型字段（数值码或文字名）与子类型
+    const TYPE_KEYS: &[&str] = &["type", "msgtype", "msg_type", "localtype", "local_type", "类型"];
+    const SUBTYPE_KEYS: &[&str] = &["subtype", "sub_type", "子类型"];
 
     let mut groups: BTreeMap<String, Vec<(String, String, String)>> = BTreeMap::new();
     for rec in &records {
-        let text = match pick(rec, TEXT_KEYS) {
-            Some(t) => t.clone(),
-            None => continue,
-        };
+        // 正文优先取文本字段；为空时按消息类型补一个可读占位符（图片/语音/视频…）
+        let mut text = pick(rec, TEXT_KEYS).cloned().unwrap_or_default();
         if text.trim().is_empty() {
-            continue;
+            let subtype = pick(rec, SUBTYPE_KEYS).and_then(|s| s.trim().parse::<i64>().ok());
+            match pick(rec, TYPE_KEYS).and_then(|t| type_placeholder(t, subtype)) {
+                Some(ph) => text = ph.to_string(),
+                None => continue, // 无正文也无可识别类型 → 跳过
+            }
         }
         let contact = pick(rec, CONTACT_KEYS)
             .cloned()
